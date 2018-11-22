@@ -23,4 +23,4 @@ setup(name='Youtube_Downloader',
             os.path.join(PYTHON_INSTALL_DIR, 'DLLs', 'tk86t.dll'),
             os.path.join(PYTHON_INSTALL_DIR, 'DLLs', 'tcl86t.dll'),
 			os.path.dirname(os.path.realpath(__file__))+'\\Data'],"packages": ["urllib"]}},
-      executables = [Executable("GUI.py")])
+      executables = [Executable("graphical_interface.py")])
