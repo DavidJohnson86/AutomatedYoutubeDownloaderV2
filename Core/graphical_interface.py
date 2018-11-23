@@ -2,15 +2,53 @@
 Graphical user interface designed for downloading videos or audio from Youtube
 """
 
+from tkinter import messagebox
+from PIL import Image, ImageTk
+from easygui import fileopenbox, diropenbox
+from queue import Empty
+
 
 import tkinter as tk
 import sys
 import threading
 import YotubeDownloader
 
-from tkinter import messagebox
-from PIL import Image, ImageTk
-from easygui import fileopenbox, diropenbox
+
+
+class StatusBar(tk.Frame):
+    """This is an info text with detailed description about the process status during the background
+    Reads a queue message from the background"""
+
+    def __init__(self, parent, *args, **kwargs):
+        tk.Frame.__init__(self, parent, *args, **kwargs)
+        self.parent = tk.Frame(parent)
+        self.hint = tk.LabelFrame(self.parent, text=" 2. Process Details: ")
+        self.hint.grid(row=0)
+        self.scrollbar = tk.Scrollbar(self.hint)
+        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.display_text = tk.Text(self.hint, background='white', foreground='black', height=10, width=70,
+                                    font=('Comic Sans MS', 9), yscrollcommand=self.scrollbar.set)
+        self.display_text.configure(state="disabled")
+        self.display_text.pack()
+        self.parent.grid(row=5, columnspan=7, sticky='W', padx=5, pady=5, ipadx=5, ipady=5)
+        self.write_status_bar()
+
+    def write_status_bar(self):
+        """This function is refreshing the Console every 1 sec if any new message available"""
+
+        try:
+            data = YotubeDownloader.Application.CONSOLE_MESSAGE.get(False)
+            # -- If `False`, the program is not blocked. `Queue.Empty` is thrown if
+            # -- the queue is empty
+        except Empty:
+            data = None
+        if data:
+            self.display_text.configure(state="normal")
+            self.display_text.tag_configure('color', foreground='#000000')
+            self.display_text.insert('end', data, 'color')
+            self.display_text.configure(state="disabled")
+            self.display_text.see(tk.END)
+        self.parent.after(100, self.write_status_bar)
 
 
 class MainApplication(tk.Frame):
@@ -44,7 +82,7 @@ class MainApplication(tk.Frame):
     def init_ui(self):
         """Init User interface"""
         self.create_container_mainframe()
-        self.create_container_picture()
+        self.create_container_status_bar()
         self.create_buttons()
         self.create_labels()
         self.create_check_buttons()
@@ -61,19 +99,23 @@ class MainApplication(tk.Frame):
     def create_container_mainframe(self):
         """Create container for mainframe"""
         self.hint_one = tk.LabelFrame(self.parent, text=" 1. Enter File Details: ")
-        self.hint_one.grid(row=0, columnspan=7, sticky='W', padx=5, pady=5, ipadx=5, ipady=5)
+        self.hint_one.grid(row=0, columnspan=1, sticky='W', padx=5, pady=5, ipadx=5, ipady=5)
 
-    def create_container_picture(self):
+    def create_container_status_bar(self):
         """Create Container for Picture"""
-        self.hintpic = tk.LabelFrame(self.hint_one)
-        self.hintpic.grid(row=5, columnspan=14, sticky='N', padx=10, pady=10, ipadx=5, ipady=5)
+        self.hintpic = StatusBar(self.parent)
+
 
     def create_buttons(self):
         """Create Buttons"""
-        self.ok_button = tk.Button(self.parent, text="OK", command=self.push_ok_button)
-        self.ok_button.grid(row=4, column=0, sticky='W' + 'E', padx=5, pady=5, ipadx=1, ipady=1)
-        exit_button = tk.Button(self.parent, text="Exit", command=self.cancel_button)
-        exit_button.grid(row=4, column=1, sticky='W', padx=5, pady=5, ipadx=30, ipady=1)
+
+        self.buttons_frame = tk.LabelFrame(self.parent, relief='flat')
+        self.buttons_frame.grid(row=6, sticky='W', padx=5, pady=5, ipadx=5, ipady=5)
+        self.ok_button = tk.Button(self.buttons_frame, text="OK", command=self.push_ok_button)
+        self.ok_button.grid(row=6, column=0, sticky='W', padx=5, pady=5,ipadx=30, ipady=1)
+        exit_button = tk.Button(self.buttons_frame, text="Exit", command=self.cancel_button)
+        exit_button.grid(row=6, column=1, padx=5, pady=5, ipadx=30, ipady=1)
+
         browse_btn_one = tk.Button(self.hint_one, text="Browse ...", command=self.browse_first)
         browse_btn_one.grid(row=0, column=8, sticky='W', padx=5, pady=2)
         browse_btn_two = tk.Button(self.hint_one, text="Browse ...", command=self.browse_second)
@@ -118,19 +160,21 @@ class MainApplication(tk.Frame):
         """Select the files to Edit"""
         current_entry = self.labelent_one
         self.file_one = fileopenbox()
-        if self.file_one.encode('utf-8') == '.':
-            pass
-        elif self.file_one:
-            current_entry.insert(0, str(self.file_one))
+        if self.file_one is not None:
+            if self.file_one.encode('utf-8') == '.':
+                pass
+            elif self.file_one:
+                current_entry.insert(0, str(self.file_one))
 
     def browse_second(self):
         """Select the files to Edit"""
         current_entry = self.labelent_two
         self.file_two = diropenbox()
-        if self.file_two.encode('utf-8') == '.':
-            pass
-        elif self.file_two:
-            current_entry.insert(0, str(self.file_two))
+        if self.file_two is not None:
+            if self.file_two.encode('utf-8') == '.':
+                pass
+            elif self.file_two:
+                current_entry.insert(0, str(self.file_two))
 
     def save_button(self):
         """Select the files save path"""
@@ -143,11 +187,11 @@ class MainApplication(tk.Frame):
         """Input Verification and start the process"""
         self.get_inputs()
         if self.file_one and self.file_two:
-            self.thread1 = threading.Thread(target=self.parse, name='controller')
+            self.thread1 = threading.Thread(target=self.parse, name='controller', daemon=True)
             self.thread1.start()
             self.disable_buttons()
         elif not (self.file_one and self.file_two):
-            self.error_message()
+            self.error_message("Error", "Missing Data")
         elif not self.thread1.is_alive():
             self.enable_buttons()
 
@@ -175,7 +219,10 @@ class MainApplication(tk.Frame):
 
     def call_downloader(self):
         """Call the Application"""
-        YotubeDownloader.Application(self.file_one, self.file_two, self.param)
+        try:
+            YotubeDownloader.Application(self.file_one, self.file_two, self.param)
+        except FileNotFoundError as error:
+            self.error_message("Error", error)
         self.queue_event("Success")
 
     def disable_buttons(self):
@@ -190,8 +237,10 @@ class MainApplication(tk.Frame):
         """Show image on GUI"""
         image = Image.open(nameofpic)
         photo = ImageTk.PhotoImage(image)
-        label = tk.Label(self.hintpic, image=photo)
+        hintpic = tk.LabelFrame(self.parent, relief="flat")
+        label = tk.Label(hintpic, image=photo)
         label.image = photo
+        hintpic.grid(row=0, column=2, sticky='W', padx=5, pady=5, ipadx=1, ipady=1)
         label.grid()
 
     def get_inputs(self):
@@ -205,9 +254,9 @@ class MainApplication(tk.Frame):
         sys.exit()
 
     @staticmethod
-    def error_message():
+    def error_message(*args):
         """Show an Error window"""
-        tk.messagebox.showinfo("Error", "Missing Data")
+        tk.messagebox.showinfo(args[0], args[1])
 
     @staticmethod
     def get_centercoordinate(win):
@@ -222,8 +271,7 @@ class MainApplication(tk.Frame):
         x_coords = win.winfo_screenwidth() // 2 - win_width // 2
         y_coords = win.winfo_screenheight() // 2 - win_height // 2
         win.geometry('{}x{}+{}+{}'.format(width, height, x_coords, y_coords))
-        #win.deiconify()
-
+        win.deiconify()
 
 if __name__ == "__main__":
 

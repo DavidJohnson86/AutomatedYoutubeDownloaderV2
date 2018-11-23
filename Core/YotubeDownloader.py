@@ -24,6 +24,7 @@ from easygui import *
 import Search
 import os
 import subprocess
+from queue import Queue, Empty
 
 class Application():
     """
@@ -32,7 +33,7 @@ class Application():
     """
     
     youtubedl_path = os.path.dirname(__file__) + '\Data'
-    cmd_output_container = []
+    CONSOLE_MESSAGE = Queue()
 
     def __init__(self, playlist_file, output_path, param):
         """Init class variables"""
@@ -56,14 +57,14 @@ class Application():
                     url = result['link']
                     # regular expression looking for youtube url
                     if re.search(r'www.youtube.com', url):
-                        print ("DOWNLOADING", title.encode("utf-8"))
+                        Application.CONSOLE_MESSAGE.put("Downloading", title.encode("utf-8"))
                         decoded_url = urllib.parse.unquote(url)
-                        print (decoded_url)
+                        Application.CONSOLE_MESSAGE.put("Link: %s" % decoded_url)
             else:
                 title = song
-                print("DOWNLOADING", title.encode("utf-8"))
+                Application.CONSOLE_MESSAGE.put("Downloading %s" % title)
                 decoded_url = song
-                print (decoded_url)
+                Application.CONSOLE_MESSAGE.put("Link: %s" % decoded_url)
                 
             try:
                 os.chdir(Application.youtubedl_path)
@@ -71,36 +72,36 @@ class Application():
                 import sys
                 os.chdir(os.path.dirname(os.path.realpath((sys.argv[0])))+ '\Data')
             if self.reply == 'Audio':
-                print (os.getcwd())
-                subprocess.call(
+                self.run_win_cmd(
                     [ 'youtube-dl', '-o', self.output_path+'/%(title)s.(ext)s',
                     "--extract-audio", "--audio-format", "mp3",
                     decoded_url])
                 
             elif self.reply == 'Video':
-                subprocess.call(
+                self.run_win_cmd(
                     ['youtube-dl', '-o', self.output_path+'/%(title)s',
                     decoded_url])
             song_flag = 1
             
             if song_flag == 1:
-                print ("Line Number"+str(self.song_num), song, "DOWNLOADED")
-                print (100 * '-')
-                song_flag = 0
+                Application.CONSOLE_MESSAGE.put("Media %s %s %s " % (self.song_num, song, "DOWNLOADED"))
             else:
-                print ("Line Number"+str(self.song_num), song, "NOT DOWNLOADED")
-                print (100 * '-')
-                self.output_temp.write(song)
+                Application.CONSOLE_MESSAGE.put("Media %s %s %s " % (self.song_num, song, "NOT DOWNLOADED"))
+                #todo create a log if download not succesfull
             time.sleep(randint(10, 15))
             self.song_num += 1
-    
-           
+
     @staticmethod
     def run_win_cmd(cmd):
-        try:
-            Application.cmd_output_container.append(subprocess.check_output(cmd, stderr=subprocess.STDOUT))
-        except subprocess.CalledProcessError:
-            raise Exception
+        process = subprocess.Popen(cmd,
+                                   shell=True,
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE)
+        for line in process.stdout:
+            Application.CONSOLE_MESSAGE.put(line)
+        errcode = process.returncode
+        if errcode is not None:
+            raise Exception('cmd %s failed, see above for details', cmd)
 
                  
 if __name__ == '__main__':
