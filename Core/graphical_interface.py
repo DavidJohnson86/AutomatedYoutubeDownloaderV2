@@ -14,7 +14,6 @@ import threading
 import YotubeDownloader
 
 
-
 class StatusBar(tk.Frame):
     """This is an info text with detailed description about the process status during the background
     Reads a queue message from the background"""
@@ -24,11 +23,15 @@ class StatusBar(tk.Frame):
         self.parent = tk.Frame(parent)
         self.hint = tk.LabelFrame(self.parent, text=" 2. Process Details: ")
         self.hint.grid(row=0)
-        self.scrollbar = tk.Scrollbar(self.hint)
-        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.y_scrollbar = tk.Scrollbar(self.hint)
+        self.y_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.x_scrollbar = tk.Scrollbar(self.hint, orient="horizontal")
+        self.x_scrollbar.pack(side=tk.BOTTOM, fill=tk.X)
         self.display_text = tk.Text(self.hint, background='white', foreground='black', height=10, width=70,
-                                    font=('Comic Sans MS', 9), yscrollcommand=self.scrollbar.set)
+                                    font=('Comic Sans MS', 9), yscrollcommand=self.y_scrollbar.set,
+                                    xscrollcommand=self.x_scrollbar.set, wrap='none')
         self.display_text.configure(state="disabled")
+        self.display_text.tag_config('finished', background="yellow", foreground="green")
         self.display_text.pack()
         self.parent.grid(row=5, columnspan=7, sticky='W', padx=5, pady=5, ipadx=5, ipady=5)
         self.write_status_bar()
@@ -44,8 +47,10 @@ class StatusBar(tk.Frame):
             data = None
         if data:
             self.display_text.configure(state="normal")
-            self.display_text.tag_configure('color', foreground='#000000')
-            self.display_text.insert('end', data, 'color')
+            if "DOWNLOADED" in str(data):
+                self.display_text.insert('end', data, 'finished')
+            else:
+                self.display_text.insert('end', data)
             self.display_text.configure(state="disabled")
             self.display_text.see(tk.END)
         self.parent.after(100, self.write_status_bar)

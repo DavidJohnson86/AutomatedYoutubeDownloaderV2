@@ -24,9 +24,10 @@ from easygui import *
 import Search
 import os
 import subprocess
-from queue import Queue, Empty
+from queue import Queue
 
-class Application():
+
+class Application:
     """
     Implementation logic around youtube-dl
     Download all input arguments to a specific location
@@ -39,9 +40,12 @@ class Application():
         """Init class variables"""
         self.output_path = output_path
         self.reply = param
-        playlist = open(playlist_file, 'r')
-        self.songs = playlist.readlines()
-        playlist.close()
+        if "playlist?list" not in playlist_file:
+            playlist = open(playlist_file, 'r')
+            self.songs = playlist.readlines()
+            playlist.close()
+        else:
+            self.songs = playlist_file
         self.song_num = 1
         self.downloadbylink = True
         self.searching()
@@ -58,13 +62,13 @@ class Application():
                     # regular expression looking for youtube url
                     if re.search(r'www.youtube.com', url):
                         Application.CONSOLE_MESSAGE.put("Downloading", title.encode("utf-8"))
-                        decoded_url = urllib.parse.unquote(url)
-                        Application.CONSOLE_MESSAGE.put("Link: %s" % decoded_url)
+                        self.decoded_url = urllib.parse.unquote(url)
+                        Application.CONSOLE_MESSAGE.put("Link: %s" % self.decoded_url)
             else:
                 title = song
                 Application.CONSOLE_MESSAGE.put("Downloading %s" % title)
-                decoded_url = song
-                Application.CONSOLE_MESSAGE.put("Link: %s" % decoded_url)
+                self.decoded_url = song
+                Application.CONSOLE_MESSAGE.put("Link: %s" % self.decoded_url)
                 
             try:
                 os.chdir(Application.youtubedl_path)
@@ -72,24 +76,31 @@ class Application():
                 import sys
                 os.chdir(os.path.dirname(os.path.realpath((sys.argv[0])))+ '\Data')
             if self.reply == 'Audio':
-                self.run_win_cmd(
-                    [ 'youtube-dl', '-o', self.output_path+'/%(title)s.(ext)s',
-                    "--extract-audio", "--audio-format", "mp3",
-                    decoded_url])
+                self.audio_song_command()
                 
             elif self.reply == 'Video':
-                self.run_win_cmd(
-                    ['youtube-dl', '-o', self.output_path+'/%(title)s',
-                    decoded_url])
+                self.video_song_command()
             song_flag = 1
             
             if song_flag == 1:
-                Application.CONSOLE_MESSAGE.put("Media %s %s %s " % (self.song_num, song, "DOWNLOADED"))
+                Application.CONSOLE_MESSAGE.put("%s. %s %s" % (self.song_num, song.strip(), "DOWNLOADED\n"))
             else:
-                Application.CONSOLE_MESSAGE.put("Media %s %s %s " % (self.song_num, song, "NOT DOWNLOADED"))
+                Application.CONSOLE_MESSAGE.put("%s. %s %s" % (self.song_num, song.strip(), "NOT DOWNLOADED\n"))
                 #todo create a log if download not succesfull
             time.sleep(randint(10, 15))
             self.song_num += 1
+        Application.CONSOLE_MESSAGE.put("Downloaded files: %s", self.song_num)
+
+    def audio_song_command(self):
+        self.run_win_cmd(
+            ['youtube-dl', '-o', self.output_path + '/%(title)s.(ext)s',
+             "--extract-audio", "--audio-format", "mp3",
+             self.decoded_url])
+
+    def video_song_command(self):
+        self.run_win_cmd(
+            ['youtube-dl', '-o', self.output_path + '/%(title)s',
+             self.decoded_url])
 
     @staticmethod
     def run_win_cmd(cmd):
