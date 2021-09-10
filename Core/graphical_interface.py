@@ -47,7 +47,7 @@ class StatusBar(tk.Frame):
             data = None
         if data:
             self.display_text.configure(state="normal")
-            if "DOWNLOADED" in str(data):
+            if  "Destination" in str(data):
                 self.display_text.insert('end', data, 'finished')
             else:
                 self.display_text.insert('end', data)
@@ -128,7 +128,7 @@ class MainApplication(tk.Frame):
 
     def create_labels(self):
         """Create Labels"""
-        label_one = tk.Label(self.hint_one, text="Select Music File: ")
+        label_one = tk.Label(self.hint_one, text="Youtube Link \Playlist: ")
         label_one.grid(row=0, column=0, sticky='E', padx=5, pady=2)
         label_two = tk.Label(self.hint_one, text="Select the Output Directory: ")
         label_two.grid(row=1, column=0, sticky='E', padx=5, pady=2)
@@ -149,7 +149,7 @@ class MainApplication(tk.Frame):
     def create_selection_entry(self):
         """File Selection Entry"""
         self.labelent_one = tk.Entry(self.hint_one)
-        self.labelent_one.grid(row=0, column=1, columnspan=7, sticky="W", pady=3)
+        self.labelent_one.grid(row=0, column=1, columnspan=7, sticky="WE", pady=3)
         self.labelent_two = tk.Entry(self.hint_one)
         self.labelent_two.grid(row=1, column=1, columnspan=7, sticky="WE", pady=2)
 
@@ -278,8 +278,8 @@ class MainApplication(tk.Frame):
         win.geometry('{}x{}+{}+{}'.format(width, height, x_coords, y_coords))
         win.deiconify()
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     ROOT = tk.Tk()
     ROOT.attributes('-alpha', 0.0)  # Transparent GUI until Initialization
     RUN = MainApplication(ROOT)
